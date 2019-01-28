@@ -13,137 +13,118 @@
 
 <script>
 import { max } from 'lodash';
-import d3 from 'd3';
+import * as d3 from 'd3';
 
 export default {
     name: 'SampleD3Line',
     props: {
         width: Number,
         height: Number,
-        data: Array,
     },
     methods: {
-        canvas () {
-            return  d3.select(this.$refs.canvas);
-        },
-        attr (attr) {
-            return parseInt(this.$refs.canvas.getAttribute (attr));
+        ctx () {
+            return this.$refs.canvas.getContext('2d');
         },
 
-        getMax (axis) {
-            return max (
-                this.data.map (i => i[axis])
-            );
-        },
-        getInc (val) {
-            return Math.round (
-                val / this.data.length
-            ) - 1;
-        },
+        xAxis () {
+            const context = this.ctx();
+            const tickCount = 10;
+            const tickSize = 6;
+            const ticks = this.x.ticks(tickCount);
+            const tickFormat = this.x.tickFormat();
 
-        renderLinesAndLabels () {
-            const yInc = this.getInc(this.yMax);
-            const xInc = this.getInc(this.xMax) - 1;
+            context.beginPath();
+            ticks.forEach(d => {
+                context.moveTo(this.x(d), this.innerHeight);
+                context.lineTo(this.x(d), this.innerHeight + tickSize);
+            });
+            context.strokeStyle = "black";
+            context.stroke();
 
-            let xPos = this.margin.left;
-            let yPos = 0;
-
-            this.data.forEach((item, index) => {
-                yPos += (index == 0) ? this.margin.top : yInc;
-                this.drawLine (
-                    { x: this.margin.left, y: yPos },
-                    { x: this.xMax, y: yPos },
-                    '#E8E8E8'
-                );
-                
-                const yLabel = Math.round(
-                    this.getMax('y') - ((index == 0) ? 0 :
-                    yPos / this.ratio)
-                );
-
-                this.drawText (yLabel, {
-                    x: this.margin.left,
-                    y: yPos + 4
-                });
-                this.drawText (item.x, {
-                    x: xPos,
-                    y: this.yMax + (this.margin.bottom / 3)
-                });
-                
-                xPos += xInc;
-                
-                this.drawLine (
-                    { x: this.margin.left, y: this.margin.top },
-                    { x: this.margin.left, y: this.yMax }
-                );
-                this.drawLine (
-                    { x: this.margin.left, y: this.yMax },
-                    { x: this.xMax, y: this.yMax }
-                );
+            context.textAlign = "center";
+            context.textBaseline = "top";
+            ticks.forEach(d => {
+                context.fillText(tickFormat(d), this.x(d), this.innerHeight + tickSize);
             });
         },
+        yAxis () {
+            const context = this.ctx();
+            const tickCount = 10;
+            const tickSize = 6;
+            const tickPadding = 3;
+            const ticks = this.y.ticks(tickCount);
+            const tickFormat = this.y.tickFormat(tickCount);
 
-        renderData () {
-            const yInc = this.getInc(this.yMax);
-            const xInc = this.getInc(this.xMax) - 1;
-
-            let prevX = 0;
-            let prevY = 0;
-
-            this.data.forEach((item, index) => {
-                let x = (index * xInc) + this.margin.left;
-                let y = (this.getMax('y') - item.y)  * this.ratio;
-
-                if (y < this.margin.top) y = this.margin.top;
-                if (index > 0) {
-                    this.drawLine (
-                        { x: x, y: y },
-                        { x: prevX, y: prevY },
-                        'black', 2
-                    );
-                    this.drawBullet ({ x, y });
-                }
-                
-                prevX = x;
-                prevY = y;
+            context.beginPath();
+            ticks.forEach(d => {
+                context.moveTo(0, this.y(d));
+                context.lineTo(-6, this.y(d));
             });
+            context.strokeStyle = "black";
+            context.stroke();
+
+            context.beginPath();
+            context.moveTo(-tickSize, 0);
+            context.lineTo(0.5, 0);
+            context.lineTo(0.5, this.innerHeight);
+            context.lineTo(-tickSize, this.innerHeight);
+            context.strokeStyle = "black";
+            context.stroke();
+
+            context.textAlign = "right";
+            context.textBaseline = "middle";
+            ticks.forEach(d => {
+                context.fillText(tickFormat(d), -tickSize - tickPadding, this.y(d));
+            });
+
+            context.save();
+            context.rotate(-Math.PI / 2);
+            context.textAlign = "right";
+            context.textBaseline = "top";
+            context.font = "bold 10px sans-serif";
+            context.fillText("Price (US$)", -10, 10);
+            context.restore();
         },
 
-        render () {
-            this.ctx = this.$refs.canvas.getContext('2d');
+        async render () {
+            const context = this.ctx();
+            this.innerWidth = this.width - this.margin.left - this.margin.right,
+            this.innerHeight = this.height - this.margin.top - this.margin.bottom;
 
-            this.xMax = this.attr ('width') - (this.margin.left + this.margin.right);
-            this.yMax = this.attr ('height') - (this.margin.top + this.margin.bottom);
-            this.ratio = this.yMax / this.getMax('y');
+            const parseTime = d3.timeParse("%d-%b-%y");
 
-            this.ctx.clearRect(0, 0, this.width, this.height);
-            this.renderLinesAndLabels ();
-            this.renderData ();
-        },
+            this.x = d3.scaleTime()
+                .range([0, this.innerWidth]);
 
-        drawLine (start, end, strokeStyle = 'black', lineWidth = 1) {
-            this.ctx.strokeStyle = strokeStyle;
-            this.ctx.lineWidth = lineWidth;
+            this.y = d3.scaleLinear()
+                .range([this.innerHeight, 0]);
 
-            this.ctx.beginPath();
-            this.ctx.moveTo(start.x, start.y);
-            this.ctx.lineTo(end.x, end.y);
-            this.ctx.stroke();
-            this.ctx.closePath();
-        },
+            const line = d3.line()
+                .x(d => this.x(d.date))
+                .y(d => this.y(d.close))
+                .curve(d3.curveStep)
+                .context(context);
 
-        drawBullet (pos) {
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x, pos.y, 6, 0, 2 * Math.PI, false);
-            this.ctx.fillStyle = 'red';
-            this.ctx.fill();
-            this.ctx.closePath();
-        },
+            context.translate(this.margin.left, this.margin.top);
 
-        drawText (text, pos) {
-            let txtSize = this.ctx.measureText(text);
-            this.ctx.font = this.dataPointFont;
-            this.ctx.fillText(text, pos.x, pos.y);
+            let data = await d3.tsv('data.tsv', d => {
+                d.date = parseTime (d.date);
+                d.close = + d.close;
+                return d;
+            });
+
+            this.x.domain(d3.extent(data, d => d.date));
+            this.y.domain(d3.extent(data, d => d.close));
+
+            this.xAxis();
+            this.yAxis();
+
+            context.beginPath();
+            line(data);
+
+            context.lineWidth = 1.5;
+            context.strokeStyle = "steelblue";
+            context.stroke();
         }
     },
     
@@ -161,18 +142,14 @@ export default {
     },
     data () {
         return {
-            title: 'US Population Chart',
-            xLabel: 'Year',
-            yLabel: 'Population (millions)',
-            labelFont: '19pt Arial',
-            dataPointFont: '10pt Arial',
             margin: { top: 40, left: 40, right: 40, bottom: 40 },
 
             // --------------
-            xMax: null,
-            yMax: null,
-            ctx: null,
-            ratio: null,
+            x: null,
+            x: null,
+            innerWidth: 0,
+            innerHeight: 0,
+
         };
     }
 }

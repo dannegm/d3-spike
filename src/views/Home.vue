@@ -1,6 +1,13 @@
 <template>
     <div class="home">
         <div class="left">
+            <h2>Canvas</h2>
+            <SampleCanvasLine
+                :width="chartLine.width"
+                :height="chartLine.height"
+                :data="chartLine.data" />
+
+            <h2>D3</h2>
             <SampleD3Line
                 :width="chartLine.width"
                 :height="chartLine.height"
@@ -22,9 +29,11 @@
 
 <script>
 import SampleD3Line from '@/components/SampleD3Line';
+import SampleCanvasLine from '@/components/SampleCanvasLine';
 export default {
     name: 'home',
     components: {
+        SampleCanvasLine,
         SampleD3Line,
     },
     mounted () {
@@ -33,8 +42,8 @@ export default {
     data () {
         return {
             chartLine: {
-                width: 800,
-                height: 600,
+                width: 600,
+                height: 300,
                 data: [
                     { x: '1790', y: 3.9 },
                     { x: '1810', y: 7.2 },
