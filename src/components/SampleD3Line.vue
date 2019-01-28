@@ -139,13 +139,10 @@ export default {
     data () {
         return {
             margin: { top: 40, left: 40, right: 40, bottom: 40 },
-
-            // --------------
             x: null,
-            x: null,
+            y: null,
             innerWidth: 0,
             innerHeight: 0,
-
         };
     }
 }
