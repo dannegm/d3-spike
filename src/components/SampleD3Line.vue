@@ -20,6 +20,7 @@ export default {
     props: {
         width: Number,
         height: Number,
+        data: Array,
     },
     methods: {
         ctx () {
@@ -88,10 +89,11 @@ export default {
 
         async render () {
             const context = this.ctx();
+            context.clearRect(0, 0, this.width, this.height);
+
             this.innerWidth = this.width - this.margin.left - this.margin.right,
             this.innerHeight = this.height - this.margin.top - this.margin.bottom;
 
-            const parseTime = d3.timeParse("%d-%b-%y");
 
             this.x = d3.scaleTime()
                 .range([0, this.innerWidth]);
@@ -100,27 +102,19 @@ export default {
                 .range([this.innerHeight, 0]);
 
             const line = d3.line()
-                .x(d => this.x(d.date))
-                .y(d => this.y(d.close))
+                .x(d => this.x(d.x))
+                .y(d => this.y(d.y))
                 .curve(d3.curveStep)
                 .context(context);
 
-            context.translate(this.margin.left, this.margin.top);
-
-            let data = await d3.tsv('data.tsv', d => {
-                d.date = parseTime (d.date);
-                d.close = + d.close;
-                return d;
-            });
-
-            this.x.domain(d3.extent(data, d => d.date));
-            this.y.domain(d3.extent(data, d => d.close));
+            this.x.domain(d3.extent(this.data, d => d.x));
+            this.y.domain(d3.extent(this.data, d => d.y));
 
             this.xAxis();
             this.yAxis();
 
             context.beginPath();
-            line(data);
+            line(this.data);
 
             context.lineWidth = 1.5;
             context.strokeStyle = "steelblue";
@@ -129,6 +123,8 @@ export default {
     },
     
     mounted () {
+        const context = this.ctx();
+        context.translate(this.margin.left, this.margin.top);
         this.render();
     },
 
